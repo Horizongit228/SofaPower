@@ -3,9 +3,8 @@
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.CAMERA" tools:node="remove" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
-    <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <application
         android:allowBackup="false"
@@ -18,9 +17,13 @@
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="false">
 
-        <!-- Replace the library component name with our defensive wrapper.
-             IntentIntegrator still targets the original component name, so an
-             activity-alias keeps the API compatible while launching SafeCaptureActivity. -->
+        <!-- Pre-download the Google Code Scanner UI module when available. -->
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="barcode_ui" />
+
+        <!-- IntentIntegrator still targets JourneyApps CaptureActivity. The alias
+             redirects that request into our system-scanner bridge. -->
         <activity
             android:name="com.journeyapps.barcodescanner.CaptureActivity"
             tools:node="remove" />
@@ -29,15 +32,14 @@
             android:name=".SafeCaptureActivity"
             android:exported="false"
             android:hardwareAccelerated="true"
-            android:screenOrientation="fullSensor"
-            android:theme="@style/zxing_CaptureTheme" />
+            android:theme="@style/AppTheme" />
 
         <activity-alias
             android:name="com.journeyapps.barcodescanner.CaptureActivity"
             android:exported="false"
             android:targetActivity=".SafeCaptureActivity" />
 
-        <!-- Fallback: the normal Android camera can scan the Hub QR and open
+        <!-- Fallback: camera apps that make custom schemes clickable can open
              SofaPower directly through sofapower://pair?... -->
         <activity
             android:name=".PairingActivity"
