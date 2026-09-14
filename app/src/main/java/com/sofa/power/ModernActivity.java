@@ -263,7 +263,7 @@ public class ModernActivity extends Activity {
 
     private void startQrPairing() {
         IntentIntegrator integrator = new IntentIntegrator(this);
-        integrator.setDesiredBarcodeFormats(IntentIntegrator.QR_CODE_TYPES);
+        integrator.setDesiredBarcodeFormats(IntentIntegrator.QR_CODE);
         integrator.setPrompt("Отсканируй QR-код из SofaPower Hub");
         integrator.setBeepEnabled(false);
         integrator.setOrientationLocked(false);
