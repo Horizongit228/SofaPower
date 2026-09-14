@@ -1,16 +1,15 @@
 # SofaPower Hub
 
-Windows companion for SofaPower. It detects physical Ethernet adapters, shows MAC/IP/gateway, checks Wake-on-LAN settings, and can apply the Windows-side WoL configuration through an elevated PowerShell session.
+Windows companion for SofaPower Android.
 
-## One-click setup
+## 1.1
 
-- Enables Wake on Magic Packet where the driver exposes it.
-- Allows the network adapter to wake the PC via `powercfg` when supported.
-- Optionally disables Windows Fast Startup.
-- Restarts the selected network adapter after applying settings.
+- Finds physical Ethernet adapters and the active one.
+- Shows MAC, IPv4, gateway, Magic Packet and Fast Startup state.
+- Runs a readable Wake-on-LAN readiness checklist.
+- Applies Windows WoL settings through a UAC-confirmed PowerShell process.
+- Generates a local QR code containing only the PC name, Ethernet MAC and local IPv4 so the Android app can pair in one scan.
+- Checks Hub updates from GitHub Releases.
+- Does not use accounts, analytics, advertising SDKs, cloud storage or telemetry. MAC/IP are not persisted by Hub.
 
-BIOS/UEFI settings are intentionally not changed. The app reminds the user to enable Wake on LAN / PCIe wake and disable ErP when needed.
-
-## Updates
-
-The app checks GitHub releases in `Horizongit228/SofaPower` and only considers release tags beginning with `hub-v`, for example `hub-v1.0.0`.
+BIOS/UEFI still needs to be checked manually: Wake on LAN/PCI-E enabled and ErP/EuP disabled.
