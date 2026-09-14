@@ -1,0 +1,66 @@
+name: Build SofaPower Hub for Windows
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'desktop/**'
+      - '.github/workflows/windows.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r desktop/requirements.txt
+          pip install pyinstaller
+
+      - name: Generate app icon
+        working-directory: desktop
+        run: python make_icon.py
+
+      - name: Build EXE
+        shell: pwsh
+        run: |
+          pyinstaller --noconfirm --clean --onefile --windowed `
+            --name "SofaPower-Hub" `
+            --icon "desktop/sofapower_hub.ico" `
+            --add-data "desktop/sofapower_hub.ico;." `
+            --collect-all customtkinter `
+            desktop/app.py
+
+      - name: Upload EXE artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SofaPower-Hub-Windows
+          path: dist/SofaPower-Hub.exe
+
+      - name: Publish or refresh Hub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = (Get-Content desktop/VERSION -Raw).Trim()
+          $tag = "hub-v$version"
+          $title = "SofaPower Hub v$version"
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag "dist/SofaPower-Hub.exe#SofaPower-Hub.exe" --clobber
+          } else {
+            gh release create $tag "dist/SofaPower-Hub.exe#SofaPower-Hub.exe" --title $title --notes "Windows companion for SofaPower. Automatic build from main."
+          }
