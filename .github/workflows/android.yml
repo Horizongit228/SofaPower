@@ -3,7 +3,18 @@ name: Build Android APK
 on:
   push:
     branches: [ main ]
+    tags:
+      - 'android-v*'
+    paths:
+      - 'app/**'
+      - 'build.gradle'
+      - 'settings.gradle'
+      - 'gradle.properties'
+      - '.github/workflows/android.yml'
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -28,14 +39,71 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Install Android 36 platform
-        run: sdkmanager "platforms;android-36"
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
 
       - name: Build debug APK
-        run: gradle --no-daemon assembleDebug
+        if: ${{ !startsWith(github.ref, 'refs/tags/android-v') }}
+        run: gradle --no-daemon :app:assembleDebug
 
-      - name: Upload APK
+      - name: Upload debug APK
+        if: ${{ !startsWith(github.ref, 'refs/tags/android-v') }}
         uses: actions/upload-artifact@v4
         with:
-          name: SofaPower-debug-apk
+          name: SofaPower-Android-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      - name: Require private signing secrets
+        if: startsWith(github.ref, 'refs/tags/android-v')
+        shell: bash
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$KEYSTORE_B64" || { echo "ANDROID_KEYSTORE_BASE64 is missing"; exit 1; }
+          test -n "$KEYSTORE_PASSWORD" || { echo "ANDROID_KEYSTORE_PASSWORD is missing"; exit 1; }
+          test -n "$KEY_ALIAS" || { echo "ANDROID_KEY_ALIAS is missing"; exit 1; }
+          test -n "$KEY_PASSWORD" || { echo "ANDROID_KEY_PASSWORD is missing"; exit 1; }
+          printf '%s' "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/sofapower-release.jks"
+
+      - name: Build signed release APK
+        if: startsWith(github.ref, 'refs/tags/android-v')
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/sofapower-release.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: gradle --no-daemon :app:assembleRelease
+
+      - name: Prepare release APK
+        if: startsWith(github.ref, 'refs/tags/android-v')
+        shell: bash
+        run: cp app/build/outputs/apk/release/app-release.apk SofaPower.apk
+
+      - name: Upload signed APK artifact
+        if: startsWith(github.ref, 'refs/tags/android-v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: SofaPower-Android-release
+          path: SofaPower.apk
+          if-no-files-found: error
+
+      - name: Publish Android GitHub release
+        if: startsWith(github.ref, 'refs/tags/android-v')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#android-v}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "SofaPower.apk#SofaPower.apk" --clobber
+          else
+            gh release create "$TAG" "SofaPower.apk#SofaPower.apk" \
+              --title "SofaPower Android v$VERSION" \
+              --notes "Signed Android release for in-app updates. No telemetry; local PC data stays on-device."
+          fi
